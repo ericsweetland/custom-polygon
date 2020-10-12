@@ -15,43 +15,48 @@ function initMap() {
   overlay.draw = function () {};
   overlay.setMap(map);
   let polyLine;
-  let parcelleHeig = Array();
-  google.maps.event.addListener(map, "mousedown", function () {
-    console.log("down");
-    isDrawing = true;
-    polyLine = new google.maps.Polyline({
-      map: map,
-    });
-    google.maps.event.addListener(map, "mousemove", function (e) {
-      console.log("move", e);
-      console.log("isDrawing", isDrawing);
-      if (isDrawing == true) {
-        console.log("draw");
-        var pageX = e.pixel.x;
-        var pageY = e.pixel.y;
-        console.log(pageX, pageY);
-        var point = new google.maps.Point(parseInt(pageX), parseInt(pageY));
+  let pointsArray = Array();
 
-        console.log("point", point);
+  ["mousedown", "touchstart"].forEach((evt) =>
+    document.getElementById("map").addEventListener(evt, function () {
+      isDrawing = true;
+      polyLine = new google.maps.Polyline({
+        map: map,
+      });
+    })
+  );
 
-        var latLng = overlay.getProjection().fromContainerPixelToLatLng(point);
-
-        console.log("latLng", latLng);
-
-        polyLine.getPath().push(latLng);
-
-        latLng = String(latLng);
-        latLng = latLng.replace("(", "");
-        latLng = latLng.replace(")", "");
-
-        var array_lng = latLng.split(",");
-        parcelleHeig.push(new google.maps.LatLng(array_lng[0], array_lng[1]));
-      }
-    });
+  google.maps.event.addListener(map, "mousemove", function (e) {
+    if (isDrawing == true) {
+      let pageX = e.pixel.x;
+      let pageY = e.pixel.y;
+      let point = new google.maps.Point(parseInt(pageX), parseInt(pageY));
+      let latLng = overlay.getProjection().fromContainerPixelToLatLng(point);
+      polyLine.getPath().push(latLng);
+      latLng = String(latLng);
+      latLng = latLng.replace("(", "");
+      latLng = latLng.replace(")", "");
+      let array_lng = latLng.split(",");
+      pointsArray.push(new google.maps.LatLng(array_lng[0], array_lng[1]));
+    }
   });
 
-  //   google.maps.event.addListener(map, "mouseup", function () {
-  //     console.log("up");
-  //     isDrawing = false;
-  //   });
+  ["mouseup", "touchend"].forEach((evt) =>
+    document.getElementById("map").addEventListener(evt, function () {
+      isDrawing = false;
+      const polygon = new google.maps.Polygon({
+        paths: pointsArray,
+        strokeColor: "#0FF000",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: "#0FF000",
+        fillOpacity: 0.35,
+        editable: true,
+        geodesic: false,
+      });
+      polygon.setMap(map);
+      polyLine.setMap(null);
+      pointsArray = [];
+    })
+  );
 }
