@@ -44,6 +44,8 @@ function initMap() {
   ["mouseup", "touchend"].forEach((evt) =>
     document.getElementById("map").addEventListener(evt, function () {
       isDrawing = false;
+      localStorage.setItem("savedPointsArray", JSON.stringify(pointsArray));
+      console.log("-->", pointsArray);
       const polygon = new google.maps.Polygon({
         paths: pointsArray,
         strokeColor: "#0FF000",
@@ -60,7 +62,6 @@ function initMap() {
       polygon.douglasPeucker(
         douglasPeuckerThreshold / (2.0 * Math.PI * earthRadius)
       );
-
       polygon.setMap(map);
       polyLine.setMap(null);
       pointsArray = [];
@@ -126,10 +127,8 @@ function initMap() {
           maxDistance = 0,
           maxDistanceIndex = 0,
           p;
-        console.log(points);
         for (var i = 1; i <= points.length - 2; i++) {
           const distance = line.distanceToPoint(points[i]);
-          console.log(distance, maxDistance);
           if (distance > maxDistance) {
             maxDistance = distance;
             maxDistanceIndex = i;
@@ -165,4 +164,30 @@ function initMap() {
     }
     return this;
   };
+
+  const savedPointsArray =
+    JSON.parse(localStorage.getItem("savedPointsArray")) || [];
+  console.log(savedPointsArray);
+  if (savedPointsArray.length > 0) {
+    console.log("draw it");
+    const polygon = new google.maps.Polygon({
+      paths: savedPointsArray,
+      strokeColor: "#0FF000",
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: "#0FF000",
+      fillOpacity: 0.35,
+      editable: true,
+      geodesic: false,
+    });
+
+    //simplify polygon
+    var douglasPeuckerThreshold = 100; // in meters
+    polygon.douglasPeucker(
+      douglasPeuckerThreshold / (2.0 * Math.PI * earthRadius)
+    );
+    polygon.setMap(map);
+    // polyLine.setMap(null);
+    pointsArray = [];
+  }
 }
