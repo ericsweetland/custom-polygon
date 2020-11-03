@@ -3,8 +3,27 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  cursor: default;
 }
 
 #map {
   height: 100%;
+}
+
+.distance-label {
+  position: absolute;
+  top: 10em;
+  left: 2em;
+}
+
+.save {
+  position: absolute;
+  top: 14em;
+  left: 2em;
+}
+
+.edit {
+  position: absolute;
+  top: 16em;
+  left: 2em;
 }

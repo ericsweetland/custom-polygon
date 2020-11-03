@@ -45,7 +45,6 @@ function initMap() {
     document.getElementById("map").addEventListener(evt, function () {
       isDrawing = false;
       localStorage.setItem("savedPointsArray", JSON.stringify(pointsArray));
-      console.log("-->", pointsArray);
       const polygon = new google.maps.Polygon({
         paths: pointsArray,
         strokeColor: "#0FF000",
@@ -58,13 +57,14 @@ function initMap() {
       });
 
       //simplify polygon
-      var douglasPeuckerThreshold = 100; // in meters
+      var douglasPeuckerThreshold = document.getElementById("distance").value; // in meters
       polygon.douglasPeucker(
         douglasPeuckerThreshold / (2.0 * Math.PI * earthRadius)
       );
       polygon.setMap(map);
       polyLine.setMap(null);
       pointsArray = [];
+      document.getElementsByClassName("save")[0].disabled = false;
     })
   );
 
@@ -177,12 +177,12 @@ function initMap() {
       strokeWeight: 2,
       fillColor: "#0FF000",
       fillOpacity: 0.35,
-      editable: true,
+      editable: false,
       geodesic: false,
     });
 
     //simplify polygon
-    var douglasPeuckerThreshold = 100; // in meters
+    var douglasPeuckerThreshold = document.getElementById("distance").value; // in meters
     polygon.douglasPeucker(
       douglasPeuckerThreshold / (2.0 * Math.PI * earthRadius)
     );
