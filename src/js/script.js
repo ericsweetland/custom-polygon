@@ -113,6 +113,30 @@ function createPolygon(pointsArray) {
     douglasPeuckerThreshold / (2.0 * Math.PI * earthRadius)
   );
 
+  polygon.getPaths().forEach(function (path, index) {
+    google.maps.event.addListener(path, "insert_at", function (evt) {
+      console.log(path);
+      console.log("insert", evt);
+      console.log(path.i[evt].lat());
+      console.log(path.i[evt].lng());
+    });
+
+    google.maps.event.addListener(path, "remove_at", function () {
+      console.log("remove");
+    });
+
+    google.maps.event.addListener(path, "set_at", function (evt) {
+      console.log(path);
+      console.log("move", evt);
+      console.log(path.i[evt].lat());
+      console.log(path.i[evt].lng());
+    });
+  });
+
+  google.maps.event.addListener(polygon, "dragend", function () {
+    console.log("dreagged");
+  });
+
   return polygon;
 }
 
