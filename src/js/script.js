@@ -1,4 +1,5 @@
 let map;
+let polygon;
 
 function createPolygon(pointsArray) {
   let oldPoint = pointsArray[0];
@@ -13,7 +14,7 @@ function createPolygon(pointsArray) {
     [oldPoint]
   );
 
-  const polygon = new google.maps.Polygon({
+  polygon = new google.maps.Polygon({
     paths: smoothedArray,
     strokeColor: "#0FF000",
     strokeOpacity: 0.8,
@@ -97,6 +98,7 @@ function initMap() {
   ["mousedown", "touchstart"].forEach((evt) =>
     document.getElementById("map").addEventListener(evt, function () {
       isDrawing = true;
+      polygon && polygon.setMap(null);
       polyLine = new google.maps.Polyline({
         map: map,
       });
@@ -122,7 +124,7 @@ function initMap() {
     document.getElementById("map").addEventListener(evt, function () {
       isDrawing = false;
       localStorage.setItem("savedPointsArray", JSON.stringify(pointsArray));
-      const polygon = createPolygon(pointsArray);
+      polygon = createPolygon(pointsArray);
       polygon.setMap(map);
       polyLine.setMap(null);
       pointsArray = [];
