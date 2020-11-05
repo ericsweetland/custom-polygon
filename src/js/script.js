@@ -1,104 +1,20 @@
 let map;
-const earthRadius = 6378137.0;
 
 function createPolygon(pointsArray) {
-  google.maps.Polygon.prototype.douglasPeucker = function (tolerance) {
-    let res = null;
-
-    //adjust tolerance depending on the zoom level
-    tolerance = tolerance * Math.pow(2, 20 - map.getZoom());
-
-    if (this.getPath() && this.getPath().getLength()) {
-      const points = this.getPath().getArray();
-
-      const Line = function (p1, p2) {
-        this.p1 = p1;
-        this.p2 = p2;
-
-        this.distanceToPoint = function (point) {
-          // slope
-          const m =
-              (this.p2.lat() - this.p1.lat()) / (this.p2.lng() - this.p1.lng()),
-            // y offset
-            b = this.p1.lat() - m * this.p1.lng(),
-            d = [];
-          // distance to the linear equation
-          d.push(
-            Math.abs(point.lat() - m * point.lng() - b) /
-              Math.sqrt(Math.pow(m, 2) + 1)
-          );
-          // distance to p1
-          d.push(
-            Math.sqrt(
-              Math.pow(point.lng() - this.p1.lng(), 2) +
-                Math.pow(point.lat() - this.p1.lat(), 2)
-            )
-          );
-          // distance to p2
-          d.push(
-            Math.sqrt(
-              Math.pow(point.lng() - this.p2.lng(), 2) +
-                Math.pow(point.lat() - this.p2.lat(), 2)
-            )
-          );
-          // return the smallest distance
-          return d.sort(function (a, b) {
-            return a - b; //causes an array to be sorted numerically and ascending
-          })[0];
-        };
-      };
-
-      const douglasPeucker = function (points, tolerance) {
-        if (points.length <= 2) {
-          return [points[0]];
-        }
-        let returnPoints = [],
-          // make line from start to end
-          line = new Line(points[0], points[points.length - 1]),
-          // find the largest distance from intermediate poitns to this line
-          maxDistance = 0,
-          maxDistanceIndex = 0,
-          p;
-        for (var i = 1; i <= points.length - 2; i++) {
-          const distance = line.distanceToPoint(points[i]);
-          if (distance > maxDistance) {
-            maxDistance = distance;
-            maxDistanceIndex = i;
-          }
-        }
-        // check if the max distance is greater than our tollerance allows
-        if (maxDistance >= tolerance) {
-          p = points[maxDistanceIndex];
-          line.distanceToPoint(p, true);
-          // include this point in the output
-          returnPoints = returnPoints.concat(
-            douglasPeucker(points.slice(0, maxDistanceIndex + 1), tolerance)
-          );
-          // returnPoints.push( points[maxDistanceIndex] );
-          returnPoints = returnPoints.concat(
-            douglasPeucker(
-              points.slice(maxDistanceIndex, points.length),
-              tolerance
-            )
-          );
-        } else {
-          // ditching this point
-          p = points[maxDistanceIndex];
-          line.distanceToPoint(p, true);
-          returnPoints = [points[0]];
-        }
-        return returnPoints;
-      };
-      res = douglasPeucker(points, tolerance);
-      // always have to push the very last point on so it doesn't get left off
-      res.push(points[points.length - 1]);
-      this.setPath(res);
-    }
-    return this;
-  };
+  let oldPoint = pointsArray[0];
+  const smoothedArray = pointsArray.reduce(
+    (newArray, newPoint) => {
+      if (haversineDistance(oldPoint, newPoint)) {
+        newArray.push(newPoint);
+        oldPoint = newPoint;
+      }
+      return newArray;
+    },
+    [oldPoint]
+  );
 
   const polygon = new google.maps.Polygon({
-    paths: pointsArray,
+    paths: smoothedArray,
     strokeColor: "#0FF000",
     strokeOpacity: 0.8,
     strokeWeight: 2,
@@ -107,11 +23,32 @@ function createPolygon(pointsArray) {
     editable: true,
     geodesic: false,
   });
-  //simplify polygon
-  var douglasPeuckerThreshold = document.getElementById("distance").value; // in meters
-  polygon.douglasPeucker(
-    douglasPeuckerThreshold / (2.0 * Math.PI * earthRadius)
-  );
+
+  function haversineDistance(p1, p2) {
+    const threshold = parseInt(document.getElementById("distance").value);
+    const metric = true;
+    const earthRadius = metric
+      ? 6371.071 * 1000 /* kilometers -> meters */
+      : 3958.8 * 5280; /* miles -> feet */
+    const lat1 = p1.lat() * (Math.PI / 180);
+    const lat2 = p2.lat() * (Math.PI / 180);
+    const latDiff = lat2 - lat1;
+    const lngDiff = (p2.lng() - p1.lng()) * (Math.PI / 180);
+    return (
+      2 *
+        earthRadius *
+        Math.asin(
+          Math.sqrt(
+            Math.sin(latDiff / 2) * Math.sin(latDiff / 2) +
+              Math.cos(lat1) *
+                Math.cos(lat2) *
+                Math.sin(lngDiff / 2) *
+                Math.sin(lngDiff / 2)
+          )
+        ) >=
+      threshold
+    );
+  }
 
   polygon.getPaths().forEach(function (path, index) {
     google.maps.event.addListener(path, "insert_at", function (evt) {
