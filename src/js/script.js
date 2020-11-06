@@ -13,7 +13,6 @@ function createPolygon(pointsArray) {
     },
     [oldPoint]
   );
-
   polygon = new google.maps.Polygon({
     paths: smoothedArray,
     strokeColor: "#0FF000",
@@ -134,10 +133,13 @@ function initMap() {
 
   const savedPointsArray =
     JSON.parse(localStorage.getItem("savedPointsArray")) || [];
+  let convertedArray = [];
   if (savedPointsArray.length > 0) {
-    const polygon = createPolygon(savedPointsArray);
+    savedPointsArray.forEach(function (point) {
+      convertedArray.push(new google.maps.LatLng(point.lat, point.lng));
+    });
+    const polygon = createPolygon(convertedArray);
     polygon.setMap(map);
-    polyLine.setMap(null);
     pointsArray = [];
   }
 }
