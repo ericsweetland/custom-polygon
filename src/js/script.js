@@ -1,22 +1,29 @@
 let map;
 let polygon;
 let pointsArray = new Array();
+let smoothedPointsArray = new Array();
+let editMode = false;
 
-function createPolygon(pointsArray, editable) {
-  let oldPoint = pointsArray[0];
-  const smoothedArray = pointsArray.reduce(
-    (newArray, newPoint) => {
-      if (haversineDistance(oldPoint, newPoint)) {
-        newArray.push(newPoint);
-        oldPoint = newPoint;
-      }
-      return newArray;
-    },
-    [oldPoint]
-  );
+function createPolygon(points, editable, initialCreate) {
+  let oldPoint = points[0];
+  pointsArray = initialCreate
+    ? points.reduce(
+        (newArray, newPoint) => {
+          if (haversineDistance(oldPoint, newPoint)) {
+            newArray.push(newPoint);
+            oldPoint = newPoint;
+          }
+          return newArray;
+        },
+        [oldPoint]
+      )
+    : points;
+
+  console.log("create", pointsArray);
+
   polygon && polygon.setMap(null);
   polygon = new google.maps.Polygon({
-    paths: smoothedArray,
+    paths: pointsArray,
     strokeColor: "#0FF000",
     strokeOpacity: 0.8,
     strokeWeight: 2,
@@ -66,28 +73,26 @@ function createPolygon(pointsArray, editable) {
     });
 
     google.maps.event.addListener(path, "set_at", function (evt) {
-      console.log(path);
-      console.log("move", evt);
-      console.log(path.i[evt].lat());
-      console.log(path.i[evt].lng());
+      updatePolygon(path, evt);
     });
   });
 
   google.maps.event.addListener(polygon, "dragend", function () {
-    console.log("dreagged");
+    console.log("dragged");
   });
 
   return polygon;
 }
 
-function savePolygon(pointsArray) {
+function savePolygon() {
   polygon && polygon.setMap(null);
+  console.log("save", pointsArray);
   polygon = createPolygon(pointsArray, false);
   polygon.setMap(map);
   document.getElementsByClassName("save")[0].disabled = true;
   document.getElementsByClassName("edit")[0].disabled = false;
   localStorage.setItem("savedPointsArray", JSON.stringify(pointsArray));
-  pointsArray = [];
+  editMode = false;
 }
 
 function loadSavedPolygon() {
@@ -103,11 +108,28 @@ function loadSavedPolygon() {
   }
 }
 
-function editPolygon(pointsArray) {
+function editPolygon() {
+  editMode = true;
   polygon = createPolygon(pointsArray, true);
   polygon.setMap(map);
   document.getElementsByClassName("save")[0].disabled = false;
   document.getElementsByClassName("edit")[0].disabled = true;
+}
+
+function updatePolygon(path, evt) {
+  console.log("before update", pointsArray);
+
+  pointsArray[evt] = new google.maps.LatLng(
+    path.i[evt].lat(),
+    path.i[evt].lng()
+  );
+
+  // pointsArray.splice(
+  //   evt,
+  //   0,
+  //   new google.maps.LatLng(path.i[evt].lat(), path.i[evt].lng())
+  // );
+  console.log("after update", pointsArray);
 }
 
 function initMap() {
@@ -126,20 +148,22 @@ function initMap() {
 
   ["mousedown", "touchstart"].forEach((evt) =>
     document.getElementById("map").addEventListener(evt, function () {
-      document.getElementsByClassName("save")[0].disabled = true;
-      document.getElementsByClassName("edit")[0].disabled = true;
-      isDrawing = true;
-      //remove any other polygons on the map
-      polygon && polygon.setMap(null);
-      pointsArray = [];
-      polyLine = new google.maps.Polyline({
-        map: map,
-      });
+      if (!editMode) {
+        document.getElementsByClassName("save")[0].disabled = true;
+        document.getElementsByClassName("edit")[0].disabled = true;
+        isDrawing = true;
+        //remove any other polygons on the map
+        polygon && !editMode && polygon.setMap(null);
+        pointsArray = [];
+        polyLine = new google.maps.Polyline({
+          map: map,
+        });
+      }
     })
   );
 
   google.maps.event.addListener(map, "mousemove", function (e) {
-    if (isDrawing == true) {
+    if (isDrawing == true && !editMode) {
       const pageX = e.pixel.x;
       const pageY = e.pixel.y;
       const point = new google.maps.Point(parseInt(pageX), parseInt(pageY));
@@ -153,30 +177,32 @@ function initMap() {
     }
   });
 
-  ["mouseup", "touchend"].forEach((evt) =>
+  ["mouseup", "touchend"].forEach((evt) => {
     document.getElementById("map").addEventListener(evt, function () {
-      isDrawing = false;
-      polygon = createPolygon(pointsArray, true);
-      polygon.setMap(map);
-      polyLine.setMap(null);
-      //enable save button
-      document.getElementsByClassName("save")[0].disabled = false;
-      document.getElementsByClassName("edit")[0].disabled = true;
-    })
-  );
+      if (!editMode) {
+        isDrawing = false;
+        polygon = createPolygon(pointsArray, true, true);
+        polygon.setMap(map);
+        polyLine && polyLine.setMap(null);
+        //enable save button
+        document.getElementsByClassName("save")[0].disabled = false;
+        document.getElementsByClassName("edit")[0].disabled = true;
+      }
+    });
+  });
 
   //save button click handler
   document
     .getElementsByClassName("save")[0]
     .addEventListener("click", function () {
-      savePolygon(pointsArray);
+      savePolygon();
     });
 
   //edit button click handler
   document
     .getElementsByClassName("edit")[0]
     .addEventListener("click", function () {
-      editPolygon(pointsArray);
+      editPolygon();
     });
 
   loadSavedPolygon();
