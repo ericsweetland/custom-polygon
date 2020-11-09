@@ -1,7 +1,8 @@
 let map;
 let polygon;
+let pointsArray = new Array();
 
-function createPolygon(pointsArray) {
+function createPolygon(pointsArray, editable) {
   let oldPoint = pointsArray[0];
   const smoothedArray = pointsArray.reduce(
     (newArray, newPoint) => {
@@ -13,6 +14,7 @@ function createPolygon(pointsArray) {
     },
     [oldPoint]
   );
+  polygon && polygon.setMap(null);
   polygon = new google.maps.Polygon({
     paths: smoothedArray,
     strokeColor: "#0FF000",
@@ -20,7 +22,7 @@ function createPolygon(pointsArray) {
     strokeWeight: 2,
     fillColor: "#0FF000",
     fillOpacity: 0.35,
-    editable: true,
+    editable,
     geodesic: false,
   });
 
@@ -50,6 +52,7 @@ function createPolygon(pointsArray) {
     );
   }
 
+  //Setting up the listeners that will fire when the polygon is being edited
   polygon.getPaths().forEach(function (path, index) {
     google.maps.event.addListener(path, "insert_at", function (evt) {
       console.log(path);
@@ -77,6 +80,36 @@ function createPolygon(pointsArray) {
   return polygon;
 }
 
+function savePolygon(pointsArray) {
+  polygon && polygon.setMap(null);
+  polygon = createPolygon(pointsArray, false);
+  polygon.setMap(map);
+  document.getElementsByClassName("save")[0].disabled = true;
+  document.getElementsByClassName("edit")[0].disabled = false;
+  localStorage.setItem("savedPointsArray", JSON.stringify(pointsArray));
+  pointsArray = [];
+}
+
+function loadSavedPolygon() {
+  const savedPointsArray =
+    JSON.parse(localStorage.getItem("savedPointsArray")) || [];
+  if (savedPointsArray.length > 0) {
+    savedPointsArray.forEach(function (point) {
+      pointsArray.push(new google.maps.LatLng(point.lat, point.lng));
+    });
+    polygon = createPolygon(pointsArray, false);
+    polygon.setMap(map);
+    document.getElementsByClassName("edit")[0].disabled = false;
+  }
+}
+
+function editPolygon(pointsArray) {
+  polygon = createPolygon(pointsArray, true);
+  polygon.setMap(map);
+  document.getElementsByClassName("save")[0].disabled = false;
+  document.getElementsByClassName("edit")[0].disabled = true;
+}
+
 function initMap() {
   map = new google.maps.Map(document.getElementById("map"), {
     center: { lat: 39.2259125, lng: -84.52 },
@@ -85,19 +118,20 @@ function initMap() {
     mapTypeId: google.maps.MapTypeId.ROADMAP,
   });
 
-  var markers = [];
-
   let isDrawing = false;
   let overlay = new google.maps.OverlayView();
-  overlay.draw = function () {};
-  overlay.setMap(map);
   let polyLine;
-  let pointsArray = Array();
+  pointsArray = [];
+  overlay.setMap(map);
 
   ["mousedown", "touchstart"].forEach((evt) =>
     document.getElementById("map").addEventListener(evt, function () {
+      document.getElementsByClassName("save")[0].disabled = true;
+      document.getElementsByClassName("edit")[0].disabled = true;
       isDrawing = true;
+      //remove any other polygons on the map
       polygon && polygon.setMap(null);
+      pointsArray = [];
       polyLine = new google.maps.Polyline({
         map: map,
       });
@@ -122,24 +156,28 @@ function initMap() {
   ["mouseup", "touchend"].forEach((evt) =>
     document.getElementById("map").addEventListener(evt, function () {
       isDrawing = false;
-      localStorage.setItem("savedPointsArray", JSON.stringify(pointsArray));
-      polygon = createPolygon(pointsArray);
+      polygon = createPolygon(pointsArray, true);
       polygon.setMap(map);
       polyLine.setMap(null);
-      pointsArray = [];
+      //enable save button
       document.getElementsByClassName("save")[0].disabled = false;
+      document.getElementsByClassName("edit")[0].disabled = true;
     })
   );
 
-  const savedPointsArray =
-    JSON.parse(localStorage.getItem("savedPointsArray")) || [];
-  let convertedArray = [];
-  if (savedPointsArray.length > 0) {
-    savedPointsArray.forEach(function (point) {
-      convertedArray.push(new google.maps.LatLng(point.lat, point.lng));
+  //save button click handler
+  document
+    .getElementsByClassName("save")[0]
+    .addEventListener("click", function () {
+      savePolygon(pointsArray);
     });
-    const polygon = createPolygon(convertedArray);
-    polygon.setMap(map);
-    pointsArray = [];
-  }
+
+  //edit button click handler
+  document
+    .getElementsByClassName("edit")[0]
+    .addEventListener("click", function () {
+      editPolygon(pointsArray);
+    });
+
+  loadSavedPolygon();
 }
