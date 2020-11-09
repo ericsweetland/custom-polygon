@@ -5,33 +5,33 @@ let smoothedPointsArray = new Array();
 let editMode = false;
 
 function createPolygon(points, editable, initialCreate) {
-  let oldPoint = points[0];
-  pointsArray = initialCreate
-    ? points.reduce(
-        (newArray, newPoint) => {
-          if (haversineDistance(oldPoint, newPoint)) {
-            newArray.push(newPoint);
-            oldPoint = newPoint;
-          }
-          return newArray;
-        },
-        [oldPoint]
-      )
-    : points;
+  if (points.length > 1) {
+    let oldPoint = points[0];
+    pointsArray = initialCreate
+      ? points.reduce(
+          (newArray, newPoint) => {
+            if (haversineDistance(oldPoint, newPoint)) {
+              newArray.push(newPoint);
+              oldPoint = newPoint;
+            }
+            return newArray;
+          },
+          [oldPoint]
+        )
+      : points;
 
-  console.log("create", pointsArray);
-
-  polygon && polygon.setMap(null);
-  polygon = new google.maps.Polygon({
-    paths: pointsArray,
-    strokeColor: "#0FF000",
-    strokeOpacity: 0.8,
-    strokeWeight: 2,
-    fillColor: "#0FF000",
-    fillOpacity: 0.35,
-    editable,
-    geodesic: false,
-  });
+    polygon && polygon.setMap(null);
+    polygon = new google.maps.Polygon({
+      paths: pointsArray,
+      strokeColor: "#0FF000",
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      fillColor: "#0FF000",
+      fillOpacity: 0.35,
+      editable,
+      geodesic: false,
+    });
+  }
 
   function haversineDistance(p1, p2) {
     const threshold = parseInt(document.getElementById("distance").value);
@@ -62,18 +62,16 @@ function createPolygon(points, editable, initialCreate) {
   //Setting up the listeners that will fire when the polygon is being edited
   polygon.getPaths().forEach(function (path, index) {
     google.maps.event.addListener(path, "insert_at", function (evt) {
-      console.log(path);
-      console.log("insert", evt);
-      console.log(path.i[evt].lat());
-      console.log(path.i[evt].lng());
+      insertPoint(path, evt);
     });
 
     google.maps.event.addListener(path, "remove_at", function () {
       console.log("remove");
+      //https://developers.google.com/maps/documentation/javascript/examples/delete-vertex-menu#maps_delete_vertex_menu-javascript
     });
 
     google.maps.event.addListener(path, "set_at", function (evt) {
-      updatePolygon(path, evt);
+      movePoint(path, evt);
     });
   });
 
@@ -86,7 +84,6 @@ function createPolygon(points, editable, initialCreate) {
 
 function savePolygon() {
   polygon && polygon.setMap(null);
-  console.log("save", pointsArray);
   polygon = createPolygon(pointsArray, false);
   polygon.setMap(map);
   document.getElementsByClassName("save")[0].disabled = true;
@@ -116,20 +113,19 @@ function editPolygon() {
   document.getElementsByClassName("edit")[0].disabled = true;
 }
 
-function updatePolygon(path, evt) {
-  console.log("before update", pointsArray);
-
+function movePoint(path, evt) {
   pointsArray[evt] = new google.maps.LatLng(
     path.i[evt].lat(),
     path.i[evt].lng()
   );
+}
 
-  // pointsArray.splice(
-  //   evt,
-  //   0,
-  //   new google.maps.LatLng(path.i[evt].lat(), path.i[evt].lng())
-  // );
-  console.log("after update", pointsArray);
+function insertPoint(path, evt) {
+  pointsArray.splice(
+    evt,
+    0,
+    new google.maps.LatLng(path.i[evt].lat(), path.i[evt].lng())
+  );
 }
 
 function initMap() {
@@ -153,8 +149,6 @@ function initMap() {
         document.getElementsByClassName("edit")[0].disabled = true;
         isDrawing = true;
         //remove any other polygons on the map
-        polygon && !editMode && polygon.setMap(null);
-        pointsArray = [];
         polyLine = new google.maps.Polyline({
           map: map,
         });
